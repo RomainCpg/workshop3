@@ -1,5 +1,7 @@
 import pickle
 import os
+from collections import Counter
+
 import numpy as np
 from flask import Flask, request, jsonify
 import requests
@@ -86,7 +88,7 @@ def aggregate_prediction():
         if not prediction_weights:
             return jsonify({"error": "No valid responses from models"}), 500
 
-        # **🔝 Sélection de la prédiction avec le poids total le plus élevé**
+        # on récupère celui avec le poids le plus élevé
         consensus_prediction = max(prediction_weights, key=prediction_weights.get)
 
 
@@ -113,8 +115,8 @@ def aggregate_prediction():
 
 
 model_weights2 = [0.25, 0.25, 0.25, 0.25]
-@app.route('/aggregate_predict2', methods=['GET'])
-def aggregate_prediction2():
+@app.route('/aggregate_predictQ2', methods=['GET'])
+def aggregate_predictionQ2():
     try:
         # Récupérer les features passées en paramètre
         features = {f"feature{i}": request.args.get(f"feature{i}") for i in range(4)}
@@ -135,7 +137,13 @@ def aggregate_prediction2():
         class_mapping = {"setosa": 0, "versicolor": 1, "virginica": 2}
         encoded_responses = [class_mapping[class_name] for class_name in predictions]
 
-        weighted_sum = sum(encoded_responses[i] * model_weights2[i] for i in range(len(encoded_responses)))
+        class_counts = Counter(encoded_responses)
+
+        total_responses = len(encoded_responses)
+        normalized_weights = {key: count / total_responses for key, count in class_counts.items()}
+
+        weighted_sum = sum(normalized_weights[class_id] * class_id for class_id in encoded_responses)
+
         consensus_prediction = int(round(weighted_sum))
 
         class_name = ["setosa", "versicolor", "virginica"][consensus_prediction]
