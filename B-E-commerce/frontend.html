@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecommerce</title>
+</head>
+<body>
+<h1>Welcome to this Ecommerce website</h1>
+
+<div>
+    <h2>Inscription/Connexion</h2>
+    <label for="userIdInput">ID utilisateur (ou créez un nouvel ID) : </label>
+    <input type="text" id="userIdInput">
+    <button onclick="setUserId()">Enregistrer ID utilisateur</button>
+</div>
+
+<div>
+    <h2>Products list</h2>
+    <button onclick="getProducts()">Obtain product list</button>
+    <ul id="product-list"></ul>
+</div>
+
+<div>
+    <h2>Ajouter un produit</h2>
+    <form id="add-product-form">
+        <label for="name">Nom : </label><input type="text" id="name" required><br>
+        <label for="description">Description : </label><input type="text" id="description" required><br>
+        <label for="price">Prix : </label><input type="number" id="price" required><br>
+        <label for="category">Catégorie : </label><input type="text" id="category" required><br>
+        <label for="inStock">En stock : </label><input type="checkbox" id="inStock"><br>
+        <button type="submit">Ajouter produit</button>
+    </form>
+</div>
+
+<div>
+    <h2>Ajouter un produit au panier</h2>
+    <label for="productId">ID produit : </label><input type="text" id="productId" required><br>
+    <label for="quantity">Quantité : </label><input type="number" id="quantity" required><br>
+    <button onclick="addToCart()">Ajouter au panier</button>
+</div>
+
+<div>
+    <h2>Panier de l'utilisateur</h2>
+    <button onclick="getCart()">Obtenir le panier</button>
+    <ul id="cart-list"></ul>
+</div>
+
+<div>
+    <h2>Passer une commande</h2>
+    <button onclick="placeOrder()">Passer la commande</button>
+    <p id="order-status"></p>
+</div>
+
+<script>
+
+    let apiServer = 'http://localhost:3000';
+
+    async function fetchServerAddress() {
+        try {
+            const response = await fetch('http://localhost:3001/getServer');
+            const data = await response.json();
+            if (data.server) {
+                apiServer = data.server;
+                console.log("API Server set to:", apiServer);
+            }
+        } catch (error) {
+            console.error("Erreur lors de la récupération du serveur:", error);
+        }
+    }
+
+    // Appeler cette fonction au chargement de la page
+    fetchServerAddress();
+
+
+    // Enregistrer l'ID utilisateur dans localStorage
+    function setUserId() {
+        const userId = document.getElementById('userIdInput').value;
+        if (userId) {
+            localStorage.setItem('userId', userId);
+            alert('ID utilisateur enregistré');
+        } else {
+            alert('Veuillez entrer un ID utilisateur');
+        }
+    }
+
+    // Récupérer l'ID utilisateur depuis localStorage
+    function getUserId() {
+        const userId = localStorage.getItem('userId');
+        if (!userId) {
+            alert("Veuillez d'abord enregistrer votre ID utilisateur");
+            return null;
+        }
+        return userId;
+    }
+
+    // Obtenir tous les produits
+    function getProducts() {
+        fetch(apiServer+'/products')
+            .then(response => response.json())
+            .then(data => {
+                const productList = document.getElementById('product-list');
+                productList.innerHTML = '';
+                data.forEach(product => {
+                    const li = document.createElement('li');
+                    li.textContent = `${product.name} - ${product.price}€`;
+                    productList.appendChild(li);
+                });
+            })
+            .catch(error => console.error('Erreur :', error));
+    }
+
+    // Ajouter un produit
+    document.getElementById('add-product-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const newProduct = {
+            name: document.getElementById('name').value,
+            description: document.getElementById('description').value,
+            price: parseFloat(document.getElementById('price').value),
+            category: document.getElementById('category').value,
+            inStock: document.getElementById('inStock').checked
+        };
+
+        fetch(`${apiServer}/products`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(newProduct)
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Produit ajouté:', data);
+                alert('Produit ajouté avec succès');
+            })
+            .catch(error => console.error('Erreur :', error));
+    });
+
+    // Ajouter un produit au panier
+    function addToCart() {
+        const userId = getUserId();
+        if (!userId) return;
+
+        const productId = document.getElementById('productId').value;
+        const quantity = document.getElementById('quantity').value;
+
+        const cartItem = {
+            productId: parseInt(productId),
+            quantity: parseInt(quantity)
+        };
+
+        fetch(`${apiServer}/cart/${userId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(cartItem)
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Produit ajouté au panier:', data);
+                alert('Produit ajouté au panier');
+            })
+            .catch(error => console.error('Erreur :', error));
+    }
+
+    // Afficher le panier d'un utilisateur
+    function getCart() {
+        const userId = getUserId();
+        if (!userId) return;
+
+        fetch(`${apiServer}/cart/${userId}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);  // Affiche la réponse complète dans la console
+                const cartList = document.getElementById('cart-list');
+                cartList.innerHTML = '';
+
+                // Vérifie si la propriété 'items' existe et est un tableau
+                if (Array.isArray(data.items)) {
+                    data.items.forEach(item => {
+                        const li = document.createElement('li');
+                        li.textContent = `Produit ID: ${item.productId}, Quantité: ${item.quantity}`;
+                        cartList.appendChild(li);
+                    });
+                } else {
+                    cartList.textContent = 'Aucun produit dans le panier.';
+                }
+            })
+            .catch(error => console.error('Erreur :', error));
+    }
+
+
+    // Passer la commande
+    function placeOrder() {
+        const userId = getUserId();
+        if (!userId) return;
+
+        fetch(`${apiServer}/orders`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ user: userId })
+        })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('order-status').textContent = 'Commande passée avec succès!';
+            })
+            .catch(error => {
+                console.error('Erreur :', error);
+                document.getElementById('order-status').textContent = 'Erreur lors du passage de la commande.';
+            });
+    }
+</script>
+
+</body>
+</html>
