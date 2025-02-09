@@ -45,3 +45,50 @@ for url in models_urls:
 
 Each model result is converted in number, which are then normalized. 
 We can now make an average of all the results and get the consensus.
+
+## Q3 and Q4
+
+For this part, we firstly store the weights of each models : 
+
+```
+default_weights = [0.25, 0.25, 0.25, 0.25]
+weights_file = "weights.pkl"
+
+if os.path.exists(weights_file):
+    with open(weights_file, "rb") as f:
+        model_weights = pickle.load(f)
+else:
+    model_weights = default_weights
+    with open(weights_file, "wb") as f:
+        pickle.dump(model_weights, f)
+```
+
+Then, we will group the results by model and sum their respective weights.
+For example, if the results are [flowerA, flowerB, flowerA], we will add up the weights of flowerA together.
+This allows us to create a dictionary where each unique model result is associated with its total weight.
+```
+if prediction in prediction_weights:
+    prediction_weights[prediction] += model_weights[i]
+else:
+    prediction_weights[prediction] = model_weights[i]
+```
+
+After that, we can have the result with the best weight : 
+```
+consensus_prediction = max(prediction_weights, key=prediction_weights.get)
+```
+
+Finaly, we have to update the model weight. 
+If the model have the same result as the consensus prediction, then it will increase by a learning rate. 
+If not, it will be decreased by the same learning rate.
+
+```
+learning_rate = 0.05
+for i in range(len(predictions)):
+    if(predictions[i] == consensus_prediction):
+        model_weights[i] += learning_rate
+    else:
+        model_weights[i] -= learning_rate
+```
+
+
